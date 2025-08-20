@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>TechEscape — Mobile Maze Quiz</title>
+  <style>
+    :root{
+      --bg:#0e0f13; --card:#151823; --fg:#e7e9ee; --muted:#aab1c6; --accent:#00e0a4; --warn:#ff7a7a;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Ubuntu,Arial,Helvetica,sans-serif;background:radial-gradient(1200px 600px at 80% -10%,#1e2130 0%,#0e0f13 55%);color:var(--fg)}
+    .wrap{max-width:880px;margin:0 auto;padding:16px}
+    .card{background:linear-gradient(180deg,rgba(255,255,255,0.02),rgba(255,255,255,0.01));border:1px solid rgba(255,255,255,0.08);backdrop-filter:blur(6px);border-radius:18px;box-shadow:0 10px 35px rgba(0,0,0,.35)}
+    header{display:flex;gap:14px;align-items:center;justify-content:space-between;margin:16px 0}
+    .brand{display:flex;align-items:center;gap:12px}
+    .logo{width:40px;height:40px;border-radius:12px;background:conic-gradient(from 210deg at 50% 50%, #00e0a4, #5ac9ff, #7e6bff, #00e0a4);box-shadow:0 0 25px rgba(0,224,164,.35)}
+    h1{font-size:clamp(22px,3.5vw,34px);margin:0}
+    .pill{padding:6px 10px;border:1px solid rgba(255,255,255,.12);border-radius:999px;color:var(--muted);font-size:12px}
+    .grid{display:grid;grid-template-columns:1fr;gap:14px}
+    .section{padding:18px}
+    .title{font-size:clamp(18px,3vw,24px);margin:0 0 8px}
+    .muted{color:var(--muted)}
+    .rules{display:grid;gap:8px;margin:8px 0 0 0}
+    .rules li{margin-left:18px}
+    input,button,select,textarea{width:100%;padding:12px 14px;border-radius:12px;border:1px solid rgba(255,255,255,.12);background:#0f121b;color:var(--fg);font-size:16px}
+    button{cursor:pointer;transition:.2s ease;box-shadow:inset 0 0 0 0 var(--accent)}
+    button.primary{background:linear-gradient(180deg,rgba(0,224,164,.2),rgba(0,224,164,.08));border-color:rgba(0,224,164,.45)}
+    button.primary:hover{transform:translateY(-1px);box-shadow:0 6px 18px rgba(0,224,164,.25)}
+    .row{display:flex;gap:10px;flex-wrap:wrap}
+    .badge{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border-radius:999px;background:#0f121b;border:1px solid rgba(255,255,255,.08);font-size:13px;color:var(--muted)}
+    .level{padding:18px;display:none}
+    .level.active{display:block;animation:fade .25s ease}
+    .hint{margin-top:10px}
+    details{background:#0f121b;border:1px dashed rgba(255,255,255,.15);padding:10px 12px;border-radius:12px}
+    .feedback{margin-top:10px;font-weight:600}
+    .ok{color:var(--accent)}
+    .err{color:var(--warn)}
+    .footer{padding:16px;text-align:center;color:var(--muted);font-size:13px}
+    .timer{font-variant-numeric:tabular-nums;letter-spacing:.5px}
+    @keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+    /* Mobile tweaks */
+    @media (max-width:600px){ .row > *{flex:1 1 100%} }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div class="brand"><div class="logo"></div><div>
+        <h1>TechEscape — Mobile Maze Quiz</h1>
+        <div class="muted" id="subtitle">Lock‑room style tech puzzles • Mobile friendly</div>
+      </div></div>
+      <div class="pill" id="eventMeta">Time limit: 45:00</div>
+    </header>
+
+    <!-- Intro / Start -->
+    <section class="card section" id="intro">
+      <h2 class="title">Welcome, Code Adventurer 👋</h2>
+      <p class="muted">Solve each puzzle to unlock the next gate. Finish all levels before the timer hits zero to <strong>ESCAPE</strong>.
+      </p>
+
+      <div class="grid">
+        <div class="row">
+          <input id="playerName" placeholder="Your Name (required)" />
+          <input id="teamName" placeholder="Team Name (optional)" />
+        </div>
+        <div class="row">
+          <select id="eventChoice">
+            <option value="TechEscape" selected>TechEscape</option>
+            <option value="CodeQuest">CodeQuest (Quiz)</option>
+          </select>
+          <input id="duration" type="number" min="5" max="120" value="45"/>
+        </div>
+        <div class="muted">Tip: You can change the time (minutes) above if needed.</div>
+      </div>
+
+      <h3 class="title" style="margin-top:12px">Rules</h3>
+      <ul class="rules">
+        <li>No internet searches. Use your brain 🧠</li>
+        <li>Each level unlocks only after a <em>correct</em> answer</li>
+        <li>Fastest team to finish wins. Hints reduce tie‑break priority</li>
+      </ul>
+
+      <div class="row" style="margin-top:14px">
+        <button class="primary" id="startBtn">Start Game</button>
+        <button id="howBtn">How it works</button>
+      </div>
+      <details style="margin-top:8px"><summary>Organizer quick guide</summary>
+        <ol class="muted">
+          <li>Open this file on any phone/laptop. It works offline once loaded.</li>
+          <li>Edit questions in the <strong>CONFIG</strong> section (inside the HTML file).</li>
+          <li>Share via QR: host the file on GitHub Pages / Netlify, then place the QR on posters.</li>
+        </ol>
+      </details>
+    </section>
+
+    <!-- Game Card -->
+    <section class="card section" id="game" style="display:none">
+      <div class="row" style="justify-content:space-between;align-items:center">
+        <div class="badge">Player: <span id="who">—</span></div>
+        <div class="badge timer">⏱ <span id="clock">45:00</span></div>
+      </div>
+
+      <div id="levels"></div>
+
+      <div class="footer">Need a hint? Expand the <em>Hint</em> below each puzzle. Using hints is allowed but recorded.
+      </div>
+    </section>
+
+    <!-- Finish Card -->
+    <section class="card section" id="finish" style="display:none">
+      <h2 class="title">🎉 You Escaped!</h2>
+      <p class="muted">Great job, <span id="finName"></span>! You cleared all <span id="finLevels"></span> levels in <span id="finTime"></span>.
+      Hints used: <span id="finHints"></span>.</p>
+
+      <div class="row" style="margin-top:10px">
+        <button class="primary" id="restart">Play Again</button>
+        <button id="downloadCsv">Download Result CSV</button>
+      </div>
+    </section>
+
+    <div class="footer">Built for GFG Chapter events • Works on mobile • Single HTML file</div>
+  </div>
+
+  <script>
+    // ===================== CONFIG =====================
+    const CONFIG = {
+      eventTitle: 'TechEscape — Mobile Maze Quiz',
+      organizer: 'GFG Student Chapter • PESITM Shivamogga',
+      timeMinutes: 45,
+      levels: [
+        {
+          title: 'Level 1 — The Entry Gate',
+          prompt: 'I start with T, end with T, and am full of T. What am I?',
+          type: 'text',
+          answers: ['TEAPOT'],
+          hint: 'Think of a container used for brewing.',
+          success: 'Gate opened! Proceed to Level 2.'
+        },
+        {
+          title: 'Level 2 — Binary Lock',
+          prompt: 'Decode this binary to text: 01001000 01001001',
+          type: 'text',
+          answers: ['HI'],
+          hint: 'Use 8-bit ASCII (H=72, I=73).',
+          success: 'Nice! The console flickers and unlocks the next door.'
+        },
+        {
+          title: 'Level 3 — The Buggy Code',
+          prompt: 'Without running it, what is the output?\n\nnums = [1,2,3,4,5]\nprint(sum(nums[::2]))',
+          type: 'text',
+          answers: ['9','09'],
+          hint: 'Slice step 2 picks 1, 3, 5.',
+          success: 'You read the code like a pro. Next!' 
+        },
+        {
+          title: 'Level 4 — Caesar Cipher',
+          prompt: 'Decrypt this (shift 3): Khoor Zruog',
+          type: 'text',
+          answers: ['HELLO WORLD'],
+          hint: 'Shift each letter back by 3.',
+          success: 'Cipher cracked. A hidden panel slides open.'
+        },
+        {
+          title: 'Level 5 — Number Pattern',
+          prompt: 'Find the next number: 2, 6, 12, 20, ?',
+          type: 'text',
+          answers: ['30'],
+          hint: 'Differences are +4, +6, +8…',
+          success: 'Pattern solved. The final door awaits.'
+        },
+        {
+          title: 'Final — Exit Code',
+          prompt: 'Unscramble the letters to form the exit word: C P E A S E',
+          type: 'text',
+          answers: ['ESCAPE'],
+          hint: 'It\'s what you\'re trying to do 😉',
+          success: 'That\'s it! You have escaped the maze.'
+        }
+      ]
+    };
+    // ===================== END CONFIG ==================
+
+    // DOM refs
+    const intro = document.getElementById('intro');
+    const game = document.getElementById('game');
+    const finish = document.getElementById('finish');
+    const startBtn = document.getElementById('startBtn');
+    const howBtn = document.getElementById('howBtn');
+    const who = document.getElementById('who');
+    const clock = document.getElementById('clock');
+    const eventMeta = document.getElementById('eventMeta');
+    const levelsWrap = document.getElementById('levels');
+    const playerName = document.getElementById('playerName');
+    const teamName = document.getElementById('teamName');
+    const eventChoice = document.getElementById('eventChoice');
+    const duration = document.getElementById('duration');
+    const finName = document.getElementById('finName');
+    const finTime = document.getElementById('finTime');
+    const finHints = document.getElementById('finHints');
+    const finLevels = document.getElementById('finLevels');
+    const restart = document.getElementById('restart');
+    const downloadCsv = document.getElementById('downloadCsv');
+
+    // State
+    let state = {
+      current: 0,
+      hintsUsed: 0,
+      startedAt: null,
+      endsAt: null,
+      timerId: null,
+      name: '',
+      team: '',
+      minutes: CONFIG.timeMinutes
+    };
+
+    // Helpers
+    const pad = (n)=> String(n).padStart(2,'0');
+    const fmt = (ms)=>{ const s=Math.max(0, Math.floor(ms/1000)); const m=Math.floor(s/60); const r=s%60; return `${pad(m)}:${pad(r)}` };
+
+    function renderLevels(){
+      levelsWrap.innerHTML = '';
+      CONFIG.levels.forEach((lvl, idx)=>{
+        const section = document.createElement('div');
+        section.className = 'level' + (idx===0? ' active': '');
+        section.dataset.idx = idx;
+        section.innerHTML = `
+          <h3 class="title">${lvl.title}</h3>
+          <pre style="white-space:pre-wrap;background:#0f121b;border:1px solid rgba(255,255,255,.08);padding:12px;border-radius:12px">${lvl.prompt}</pre>
+          ${lvl.type==='mcq' ? renderMCQ(lvl) : `<input placeholder="Type your answer" class="ans"/>`}
+          <div class="row" style="margin-top:10px">
+            <button class="primary submit">Submit</button>
+            <details class="hint"><summary>Hint</summary><div>${lvl.hint || 'No hints for this one.'}</div></details>
+          </div>
+          <div class="feedback" aria-live="polite"></div>
+        `;
+        levelsWrap.appendChild(section);
+      });
+      // wire events
+      levelsWrap.querySelectorAll('.level').forEach(sec=>{
+        const idx = Number(sec.dataset.idx);
+        const btn = sec.querySelector('.submit');
+        const hintEl = sec.querySelector('details.hint');
+        const feedback = sec.querySelector('.feedback');
+        const input = sec.querySelector('.ans') || sec.querySelector('input[type=radio]');
+
+        hintEl?.addEventListener('toggle', ()=>{ if(hintEl.open){ state.hintsUsed++; }});
+        btn.addEventListener('click', ()=>{
+          let val = '';
+          const mcqChecked = sec.querySelector('input[type=radio]:checked');
+          if(mcqChecked) val = mcqChecked.value;
+          else val = (sec.querySelector('.ans')?.value || '').trim();
+          if(validate(idx, val)){
+            feedback.textContent = CONFIG.levels[idx].success || 'Correct!';
+            feedback.className = 'feedback ok';
+            goNext(idx);
+          } else {
+            feedback.textContent = 'Incorrect. Try again.';
+            feedback.className = 'feedback err';
+          }
+        });
+      });
+    }
+
+    function renderMCQ(lvl){
+      return `<div role="radiogroup" aria-label="choices" style="display:grid;gap:8px;margin:8px 0">
+        ${(lvl.choices||[]).map(c=>`<label style="display:flex;gap:8px;align-items:center"><input type="radio" name="mcq-${lvl.title}" value="${c}"> <span>${c}</span></label>`).join('')}
+      </div>`;
+    }
+
+    function validate(idx, val){
+      const exp = (CONFIG.levels[idx].answers||[]).map(x=>String(x).trim().toUpperCase());
+      return exp.includes(String(val).trim().toUpperCase());
+    }
+
+    function goNext(idx){
+      const next = idx + 1;
+      const all = levelsWrap.querySelectorAll('.level');
+      if(all[idx]) all[idx].classList.remove('active');
+      if(next < all.length){
+        all[next].classList.add('active');
+        scrollToEl(all[next]);
+      } else {
+        finishGame();
+      }
+    }
+
+    function scrollToEl(el){ el.scrollIntoView({behavior:'smooth', block:'start'}); }
+
+    function startGame(){
+      const minutes = Math.max(5, Math.min(120, Number(duration.value)||CONFIG.timeMinutes));
+      state.minutes = minutes;
+      state.name = playerName.value.trim();
+      state.team = teamName.value.trim();
+      if(!state.name){ alert('Please enter your name to start.'); return; }
+      state.current = 0; state.hintsUsed=0; state.startedAt = Date.now(); state.endsAt = state.startedAt + minutes*60*1000;
+
+      // Header updates
+      who.textContent = state.team ? `${state.name} • ${state.team}` : state.name;
+      clock.textContent = fmt(minutes*60*1000);
+      eventMeta.textContent = `Time limit: ${minutes}:00`;
+
+      intro.style.display='none';
+      game.style.display='block';
+      finish.style.display='none';
+
+      renderLevels();
+      levelsWrap.querySelector('.level')?.classList.add('active');
+
+      if(state.timerId) clearInterval(state.timerId);
+      state.timerId = setInterval(()=>{
+        const left = state.endsAt - Date.now();
+        clock.textContent = fmt(left);
+        if(left<=0){ clearInterval(state.timerId); lockGame(); }
+      }, 250);
+    }
+
+    function lockGame(){
+      levelsWrap.querySelectorAll('input,button,details').forEach(el=> el.disabled = true);
+      const last = document.createElement('div');
+      last.className = 'feedback err';
+      last.textContent = '⏱ Time\'s up! Thanks for playing.';
+      levelsWrap.appendChild(last);
+    }
+
+    function finishGame(){
+      game.style.display='none';
+      finish.style.display='block';
+      const total = Date.now() - state.startedAt;
+      finName.textContent = state.team ? `${state.name} • ${state.team}` : state.name;
+      finTime.textContent = fmt(total);
+      finHints.textContent = state.hintsUsed;
+      finLevels.textContent = CONFIG.levels.length;
+      // Save in-memory for CSV
+      window.__result = {
+        name: state.name,
+        team: state.team,
+        event: document.getElementById('eventChoice').value,
+        levels: CONFIG.levels.length,
+        hints: state.hintsUsed,
+        duration_min: state.minutes,
+        time_taken_s: Math.round(total/1000),
+        finished_at: new Date().toISOString()
+      };
+    }
+
+    function downloadResultCSV(){
+      const r = window.__result; if(!r){ alert('No result to download.'); return; }
+      const headers = Object.keys(r).join(',');
+      const row = Object.values(r).map(v=>`"${String(v).replaceAll('"','\"')}"`).join(',');
+      const csv = headers + "\n" + row + "\n";
+      const blob = new Blob([csv], {type:'text/csv'});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = 'TechEscape_Result.csv'; a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    // Wire UI
+    startBtn.addEventListener('click', startGame);
+    restart.addEventListener('click', ()=>{ location.reload(); });
+    downloadCsv.addEventListener('click', downloadResultCSV);
+    howBtn.addEventListener('click', ()=>{
+      alert('TechEscape is a step-by-step maze of puzzles. Enter your name, press Start, and solve each level. Correct answers unlock the next level. Finish before the timer ends to escape!');
+    });
+
+    // Apply dynamic title
+    document.title = CONFIG.eventTitle;
+    document.getElementById('subtitle').textContent = CONFIG.organizer;
+  </script>
+</body>
+</html>
